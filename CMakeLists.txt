@@ -19,3 +19,8 @@ include(cmake/dependency.cmake)
 include(cmake/develop.cmake)
 include(cmake/install.cmake)
 include(cmake/module.cmake)
+
+include_directories(./thirdparty/iguana/)
+include_directories(./thirdparty/frozen//)
+
+add_executable(packdemo examples/packdemo.cpp) 
