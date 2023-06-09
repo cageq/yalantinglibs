@@ -49,7 +49,14 @@ void test_sync_client() {
 async_simple::coro::Lazy<void> test_async_client(
     coro_http::coro_http_client &client) {
   std::string uri = "http://www.baidu.com";
-  auto result = co_await client.async_get(uri);
+
+  auto result = co_await client.connect(uri);
+  if (result.net_err) {
+    std::cout << result.net_err.message() << "\n";
+  }
+  std::cout << result.status << "\n";
+
+  result = co_await client.async_get(uri);
   if (result.net_err) {
     std::cout << result.net_err.message() << "\n";
   }
@@ -147,14 +154,14 @@ int main() {
   async_simple::coro::syncAwait(test_websocket(ws_client));
 
   coro_http::coro_http_client upload_client{};
-  upload_client.set_timeout(std::chrono::seconds(3));
+  upload_client.set_req_timeout(std::chrono::seconds(3));
   async_simple::coro::syncAwait(upload_files(upload_client));
 
   coro_http::coro_http_client download_client{};
-  download_client.set_timeout(std::chrono::seconds(3));
+  download_client.set_req_timeout(std::chrono::seconds(3));
   async_simple::coro::syncAwait(download_files(download_client));
 
   coro_http::coro_http_client ranges_download_client{};
-  ranges_download_client.set_timeout(std::chrono::seconds(3));
+  ranges_download_client.set_req_timeout(std::chrono::seconds(3));
   async_simple::coro::syncAwait(ranges_download_files(ranges_download_client));
 }
