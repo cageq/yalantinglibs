@@ -159,6 +159,49 @@ class io_context_pool {
   std::promise<void> promise_;
 };
 
+class multithread_context_pool {
+ public:
+  multithread_context_pool(size_t thd_num = std::thread::hardware_concurrency())
+      : work_(std::make_unique<asio::io_context::work>(ioc_)),
+        executor_(ioc_.get_executor()),
+        thd_num_(thd_num) {}
+
+  ~multithread_context_pool() { stop(); }
+
+  void run() {
+    for (int i = 0; i < thd_num_; i++) {
+      thds_.emplace_back([this] {
+        ioc_.run();
+      });
+    }
+
+    promise_.set_value();
+  }
+
+  void stop() {
+    if (thds_.empty()) {
+      return;
+    }
+
+    work_.reset();
+    for (auto &thd : thds_) {
+      thd.join();
+    }
+    promise_.get_future().wait();
+    thds_.clear();
+  }
+
+  coro_io::ExecutorWrapper<> *get_executor() { return &executor_; }
+
+ private:
+  asio::io_context ioc_;
+  std::unique_ptr<asio::io_context::work> work_;
+  coro_io::ExecutorWrapper<> executor_;
+  size_t thd_num_;
+  std::vector<std::thread> thds_;
+  std::promise<void> promise_;
+};
+
 template <typename T = io_context_pool>
 inline T &g_io_context_pool(
     unsigned pool_size = std::thread::hardware_concurrency()) {
@@ -174,8 +217,27 @@ inline T &g_io_context_pool(
 }
 
 template <typename T = io_context_pool>
+inline T &g_block_io_context_pool(
+    unsigned pool_size = std::thread::hardware_concurrency()) {
+  static auto _g_io_context_pool = std::make_shared<T>(pool_size);
+  static bool run_helper = [](auto pool) {
+    std::thread thrd{[pool] {
+      pool->run();
+    }};
+    thrd.detach();
+    return true;
+  }(_g_io_context_pool);
+  return *_g_io_context_pool;
+}
+
+template <typename T = io_context_pool>
 inline auto get_global_executor() {
   return g_io_context_pool<T>().get_executor();
+}
+
+template <typename T = io_context_pool>
+inline auto get_global_block_executor() {
+  return g_block_io_context_pool<T>().get_executor();
 }
 
 }  // namespace coro_io

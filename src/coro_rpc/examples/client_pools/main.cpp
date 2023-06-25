@@ -72,11 +72,9 @@ Lazy<void> qps_watcher(coro_io::client_pools<coro_rpc_client> &clients) {
     uint64_t cnt = qps.exchange(0);
     std::cout << "QPS:" << cnt << " working echo:" << working_echo << std::endl;
     std::cout << "free client for localhost: "
-              << (co_await clients["localhost:8801"])->free_client_count()
-              << std::endl;
+              << (clients["localhost:8801"])->free_client_count() << std::endl;
     std::cout << "free client for 127.0.0.1: "
-              << (co_await clients["127.0.0.1:8801"])->free_client_count()
-              << std::endl;
+              << (clients["127.0.0.1:8801"])->free_client_count() << std::endl;
     cnt = 0;
   }
 }
@@ -85,8 +83,7 @@ int main() {
   auto thread_cnt = std::thread::hardware_concurrency();
   coro_io::client_pools<coro_rpc_client> clients{
       coro_io::client_pool<coro_rpc_client>::pool_config{
-          .max_connection_ = thread_cnt * 20, .idle_timeout_ = 5s},
-      {"localhost:8801", "127.0.0.1:8801"}};
+          .max_connection_ = thread_cnt * 20, .idle_timeout_ = 5s}};
   for (int i = 0, lim = thread_cnt * 20; i < lim; ++i) {
     call_echo(clients, 10000).start([](auto &&) {
     });
